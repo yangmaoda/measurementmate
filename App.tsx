@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import ComparisonTool from './components/ComparisonTool';
 import ConversionTool from './components/ConversionTool';
+import CalibrationTool from './components/CalibrationTool';
 import StandaloneOCR from './components/StandaloneOCR';
 import { 
   ClipboardDocumentCheckIcon, 
   CalculatorIcon, 
   PhotoIcon,
-  Bars3Icon
+  Bars3Icon,
+  WrenchScrewdriverIcon
 } from '@heroicons/react/24/outline';
 
-type Tab = 'comparison' | 'conversion' | 'ocr';
+type Tab = 'comparison' | 'conversion' | 'calibration' | 'ocr';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('comparison');
@@ -19,6 +21,7 @@ const App: React.FC = () => {
     switch (activeTab) {
       case 'comparison': return <ComparisonTool />;
       case 'conversion': return <ConversionTool />;
+      case 'calibration': return <CalibrationTool />;
       case 'ocr': return <StandaloneOCR />;
       default: return <ComparisonTool />;
     }
@@ -27,6 +30,7 @@ const App: React.FC = () => {
   const navItems: { id: Tab; label: string; icon: any }[] = [
     { id: 'comparison', label: '测量比对', icon: ClipboardDocumentCheckIcon },
     { id: 'conversion', label: '计算工具', icon: CalculatorIcon },
+    { id: 'calibration', label: '校准', icon: WrenchScrewdriverIcon },
     { id: 'ocr', label: '独立 OCR', icon: PhotoIcon },
   ];
 
@@ -102,6 +106,7 @@ const App: React.FC = () => {
            <p className="text-gray-500 text-sm mt-1">
              {activeTab === 'comparison' && '在线数据与手工数据比对与合规性判定'}
              {activeTab === 'conversion' && '气体参数折算与数值修约工具'}
+             {activeTab === 'calibration' && '校准误差与偏差计算工具'}
              {activeTab === 'ocr' && '图片文字识别辅助工具'}
            </p>
         </header>
