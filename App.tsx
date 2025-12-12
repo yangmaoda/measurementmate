@@ -2,16 +2,18 @@ import React, { useState } from 'react';
 import ComparisonTool from './components/ComparisonTool';
 import ConversionTool from './components/ConversionTool';
 import CalibrationTool from './components/CalibrationTool';
+import AccuracyTool from './components/AccuracyTool';
 import StandaloneOCR from './components/StandaloneOCR';
 import { 
   ClipboardDocumentCheckIcon, 
   CalculatorIcon, 
   PhotoIcon,
   Bars3Icon,
-  WrenchScrewdriverIcon
+  WrenchScrewdriverIcon,
+  ChartBarSquareIcon
 } from '@heroicons/react/24/outline';
 
-type Tab = 'comparison' | 'conversion' | 'calibration' | 'ocr';
+type Tab = 'comparison' | 'conversion' | 'calibration' | 'accuracy' | 'ocr';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('comparison');
@@ -22,6 +24,7 @@ const App: React.FC = () => {
       case 'comparison': return <ComparisonTool />;
       case 'conversion': return <ConversionTool />;
       case 'calibration': return <CalibrationTool />;
+      case 'accuracy': return <AccuracyTool />;
       case 'ocr': return <StandaloneOCR />;
       default: return <ComparisonTool />;
     }
@@ -31,6 +34,7 @@ const App: React.FC = () => {
     { id: 'comparison', label: '测量比对', icon: ClipboardDocumentCheckIcon },
     { id: 'conversion', label: '计算工具', icon: CalculatorIcon },
     { id: 'calibration', label: '校准', icon: WrenchScrewdriverIcon },
+    { id: 'accuracy', label: '相对准确度', icon: ChartBarSquareIcon },
     { id: 'ocr', label: '独立 OCR', icon: PhotoIcon },
   ];
 
@@ -107,6 +111,7 @@ const App: React.FC = () => {
              {activeTab === 'comparison' && '在线数据与手工数据比对与合规性判定'}
              {activeTab === 'conversion' && '气体参数折算与数值修约工具'}
              {activeTab === 'calibration' && '校准误差与偏差计算工具'}
+             {activeTab === 'accuracy' && 'CEMS氧含量相对准确度与相对误差计算'}
              {activeTab === 'ocr' && '图片文字识别辅助工具'}
            </p>
         </header>
