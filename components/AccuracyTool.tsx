@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChartBarSquareIcon, CalculatorIcon, TableCellsIcon } from '@heroicons/react/24/outline';
+import { ChartBarSquareIcon, CalculatorIcon, TableCellsIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 
 // 95% Confidence Level t-values (two-tailed alpha=0.05)
 // Key is degrees of freedom (f = n - 1)
@@ -26,11 +26,18 @@ const getTValue = (df: number): number => {
   return T_TABLE[selected];
 };
 
+type CalcMode = 'method1' | 'method2';
+
 const AccuracyTool: React.FC = () => {
-  const [refInput, setRefInput] = useState('');
-  const [cemsInput, setCemsInput] = useState('');
+  const [mode, setMode] = useState<CalcMode>('method1');
+  
+  // Inputs
+  const [refInputList, setRefInputList] = useState(''); // Method 1 List
+  const [refInputSingle, setRefInputSingle] = useState(''); // Method 2 Single Value
+  const [cemsInput, setCemsInput] = useState(''); // Common
   
   const [result, setResult] = useState<{
+    mode: CalcMode;
     n: number;
     avgRef: string;
     avgCems: string;
@@ -46,39 +53,63 @@ const AccuracyTool: React.FC = () => {
   const calculate = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Parse inputs
+    // Helper to parse lists
     const parse = (s: string) => s.split(/[\/\s,]+/).map(v => parseFloat(v.trim())).filter(n => !isNaN(n));
-    const refs = parse(refInput);
+    
+    // Parse CEMS (common for both methods)
     const cems = parse(cemsInput);
-
-    // Validation
-    if (refs.length === 0 || cems.length === 0) {
-      alert("请输入数据");
-      return;
-    }
-    if (refs.length !== cems.length) {
-      alert(`数据数量不匹配: 参比值有 ${refs.length} 个，CEMS值有 ${cems.length} 个`);
-      return;
-    }
-    if (refs.length < 2) {
+    if (cems.length < 2) {
       alert("样本数量 (n) 必须至少为 2 以计算标准差");
       return;
     }
 
-    const n = refs.length;
-    const details = refs.map((r, i) => ({
-      ref: r,
-      cems: cems[i],
-      diff: r - cems[i] // Difference d_i = R_i - C_i
-    }));
+    let refs: number[] = [];
+
+    if (mode === 'method1') {
+      refs = parse(refInputList);
+      if (refs.length === 0) {
+        alert("请输入参比数据");
+        return;
+      }
+      if (refs.length !== cems.length) {
+        alert(`数据数量不匹配: 参比值有 ${refs.length} 个，CEMS值有 ${cems.length} 个`);
+        return;
+      }
+    } else {
+      // Method 2: Single Reference Value
+      const val = parseFloat(refInputSingle);
+      if (isNaN(val)) {
+        alert("请输入有效的参比数值");
+        return;
+      }
+      // Fill array with the single value for calculation consistency
+      refs = new Array(cems.length).fill(val);
+    }
+
+    const n = cems.length;
+    // Calculate differences: Ref - CEMS
+    const details = cems.map((c, i) => {
+      const r = refs[i];
+      return {
+        ref: r,
+        cems: c,
+        diff: r - c 
+      };
+    });
 
     // 1. Averages
-    const sumRef = refs.reduce((a, b) => a + b, 0);
-    const sumCems = cems.reduce((a, b) => a + b, 0);
-    
+    let avgRefRaw = 0;
+    if (mode === 'method1') {
+      avgRefRaw = refs.reduce((a, b) => a + b, 0) / n;
+    } else {
+      // Method 2: Average is the input itself
+      avgRefRaw = refs[0];
+    }
+    const avgCemsRaw = cems.reduce((a, b) => a + b, 0) / n;
+
     // Apply rounding to 1 decimal place as requested
-    const avgRef = Math.round((sumRef / n) * 10) / 10;
-    const avgCems = Math.round((sumCems / n) * 10) / 10;
+    const avgRef = Math.round(avgRefRaw * 10) / 10;
+    const avgCems = Math.round(avgCemsRaw * 10) / 10;
 
     if (avgRef === 0) {
       alert("参比方法平均值(修约后)为0，无法作为分母计算相对准确度");
@@ -92,8 +123,7 @@ const AccuracyTool: React.FC = () => {
     const avgDiff = Math.round(avgDiffRaw * 10) / 10;
 
     // 3. Standard Deviation (Sd)
-    // We use the raw mean difference for Sd calculation to maintain statistical validity of the variation,
-    // even though we use the rounded mean for the final RA formula.
+    // Use raw mean difference for Sd calculation
     const sumSqDiff = details.reduce((a, b) => a + Math.pow(b.diff - avgDiffRaw, 2), 0);
     const sd = Math.sqrt(sumSqDiff / (n - 1));
 
@@ -113,6 +143,7 @@ const AccuracyTool: React.FC = () => {
     const re = ((avgCems - avgRef) / avgRef) * 100;
 
     setResult({
+      mode,
       n,
       avgRef: avgRef.toFixed(1), // Display with 1 decimal
       avgCems: avgCems.toFixed(1), // Display with 1 decimal
@@ -129,33 +160,76 @@ const AccuracyTool: React.FC = () => {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-        <h2 className="text-xl font-bold text-gray-800 flex items-center mb-4">
-          <ChartBarSquareIcon className="w-6 h-6 mr-2 text-brand-600" />
-          计算氧含量相对准确度
-        </h2>
-        <p className="text-sm text-gray-500 mb-6 bg-brand-50 p-3 rounded-lg border border-brand-100">
-          依据标准流程计算：输入对应的数据对，自动计算 Sd、置信系数 CC、相对准确度及相对误差。
-          <br/>支持 95% 置信水平 t 值表自动匹配，<span className="font-bold">所有均值保留一位小数参与计算</span>。
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+          <h2 className="text-xl font-bold text-gray-800 flex items-center">
+            <ChartBarSquareIcon className="w-6 h-6 mr-2 text-brand-600" />
+            计算氧含量相对准确度
+          </h2>
+          
+          {/* Mode Toggles */}
+          <div className="bg-gray-100 p-1 rounded-lg flex text-sm font-medium">
+            <button
+              onClick={() => { setMode('method1'); setResult(null); }}
+              className={`px-4 py-2 rounded-md transition-all ${mode === 'method1' ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              方案1：标准数据对
+            </button>
+            <button
+              onClick={() => { setMode('method2'); setResult(null); }}
+              className={`px-4 py-2 rounded-md transition-all ${mode === 'method2' ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              方案2：单参比多在线
+            </button>
+          </div>
+        </div>
+
+        <p className="text-sm text-gray-500 mb-6 bg-brand-50 p-3 rounded-lg border border-brand-100 flex items-start">
+          <AdjustmentsHorizontalIcon className="w-5 h-5 mr-2 text-brand-500 shrink-0 mt-0.5" />
+          <span>
+            {mode === 'method1' 
+              ? '适用于「标准比对」场景：输入一一对应的参比值和 CEMS 值。' 
+              : '适用于「多次在线对比单一手工」场景：输入一个手工值作为基准，输入多个在线值进行比对。'}
+            <br className="mb-1"/>
+            <span className="font-bold opacity-80">计算规则：均值及平均差值保留一位小数参与计算。</span>
+          </span>
         </p>
 
         <form onSubmit={calculate} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              参比方法值 (标准值)
-              <span className="text-xs text-gray-400 font-normal ml-2">空格或 / 分隔</span>
+              {mode === 'method1' ? '参比方法值 (标准值列表)' : '参比方法值 (单一数值)'}
+              {mode === 'method1' && <span className="text-xs text-gray-400 font-normal ml-2">空格或 / 分隔</span>}
             </label>
-            <textarea
-              rows={8}
-              value={refInput}
-              onChange={e => setRefInput(e.target.value)}
-              placeholder="例如:&#10;10.1&#10;10.2&#10;10.1&#10;..."
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-brand-500 focus:border-brand-500 font-mono text-sm"
-            />
+            
+            {mode === 'method1' ? (
+              <textarea
+                rows={8}
+                value={refInputList}
+                onChange={e => setRefInputList(e.target.value)}
+                placeholder="例如:&#10;10.1&#10;10.2&#10;10.1&#10;..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-brand-500 focus:border-brand-500 font-mono text-sm"
+              />
+            ) : (
+              <div className="h-full">
+                <input
+                  type="number"
+                  step="any"
+                  value={refInputSingle}
+                  onChange={e => setRefInputSingle(e.target.value)}
+                  placeholder="例如: 10.5"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-brand-500 focus:border-brand-500 font-mono text-lg"
+                />
+                <p className="mt-2 text-xs text-gray-500">
+                  在此模式下，该数值将被作为所有在线数据的基准值进行差值计算。
+                  <br/>平均值直接取该值（保留一位小数）。
+                </p>
+              </div>
+            )}
           </div>
           
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700">
-              CEMS 法值 (测量值)
+              CEMS 法值 (测量值列表)
               <span className="text-xs text-gray-400 font-normal ml-2">空格或 / 分隔</span>
             </label>
             <textarea
@@ -173,7 +247,7 @@ const AccuracyTool: React.FC = () => {
               className="w-full flex justify-center items-center px-6 py-3 bg-brand-600 text-white rounded-lg font-medium shadow-sm hover:bg-brand-700 transition-colors text-lg"
             >
               <CalculatorIcon className="w-6 h-6 mr-2" />
-              开始计算
+              开始计算 ({mode === 'method1' ? '方案1' : '方案2'})
             </button>
           </div>
         </form>
@@ -255,7 +329,10 @@ const AccuracyTool: React.FC = () => {
                   {result.details.map((row, idx) => (
                     <tr key={idx} className="hover:bg-gray-50">
                       <td className="px-6 py-3 text-gray-400">{idx + 1}</td>
-                      <td className="px-6 py-3 font-mono">{row.ref}</td>
+                      <td className="px-6 py-3 font-mono">
+                        {row.ref}
+                        {result.mode === 'method2' && <span className="text-xs text-gray-400 ml-1">(固定)</span>}
+                      </td>
                       <td className="px-6 py-3 font-mono">{row.cems}</td>
                       <td className="px-6 py-3 font-mono text-gray-600">{row.diff.toFixed(4)}</td>
                     </tr>
