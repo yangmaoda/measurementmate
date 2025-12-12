@@ -163,7 +163,7 @@ const AccuracyTool: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
           <h2 className="text-xl font-bold text-gray-800 flex items-center">
             <ChartBarSquareIcon className="w-6 h-6 mr-2 text-brand-600" />
-            计算氧含量相对准确度
+            计算相对准确度
           </h2>
           
           {/* Mode Toggles */}
@@ -172,13 +172,13 @@ const AccuracyTool: React.FC = () => {
               onClick={() => { setMode('method1'); setResult(null); }}
               className={`px-4 py-2 rounded-md transition-all ${mode === 'method1' ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
             >
-              方案1：标准数据对
+              方案1：多对多
             </button>
             <button
               onClick={() => { setMode('method2'); setResult(null); }}
               className={`px-4 py-2 rounded-md transition-all ${mode === 'method2' ? 'bg-white text-brand-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
             >
-              方案2：单参比多在线
+              方案2：多对一
             </button>
           </div>
         </div>
@@ -195,9 +195,17 @@ const AccuracyTool: React.FC = () => {
         </p>
 
         <form onSubmit={calculate} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="space-y-2">
+          {/* 
+             Layout Ordering Logic:
+             We use order-1, order-2, order-3 to control visual flow regardless of DOM order.
+             Method 1: Ref(1), CEMS(2), Button(3) -> Standard LTR
+             Method 2: CEMS(1), Ref(2), Button(3) -> Swapped columns, Button bottom
+          */}
+
+          {/* Ref Input Container */}
+          <div className={`space-y-2 ${mode === 'method2' ? 'order-2' : 'order-1'}`}>
             <label className="block text-sm font-medium text-gray-700">
-              {mode === 'method1' ? '参比方法值 (标准值列表)' : '参比方法值 (单一数值)'}
+              {mode === 'method1' ? '参比方法值 (标准值列表)' : '个人测量值 (单一数值)'}
               {mode === 'method1' && <span className="text-xs text-gray-400 font-normal ml-2">空格或 / 分隔</span>}
             </label>
             
@@ -227,9 +235,10 @@ const AccuracyTool: React.FC = () => {
             )}
           </div>
           
-          <div className="space-y-2">
+          {/* CEMS Input Container */}
+          <div className={`space-y-2 ${mode === 'method2' ? 'order-1' : 'order-2'}`}>
             <label className="block text-sm font-medium text-gray-700">
-              CEMS 法值 (测量值列表)
+              在线测量值列表 (多数值)
               <span className="text-xs text-gray-400 font-normal ml-2">空格或 / 分隔</span>
             </label>
             <textarea
@@ -241,7 +250,7 @@ const AccuracyTool: React.FC = () => {
             />
           </div>
 
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 order-3">
             <button
               type="submit"
               className="w-full flex justify-center items-center px-6 py-3 bg-brand-600 text-white rounded-lg font-medium shadow-sm hover:bg-brand-700 transition-colors text-lg"
