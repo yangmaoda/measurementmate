@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { ChartBarSquareIcon, CalculatorIcon, TableCellsIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
+import { 
+  ChartBarSquareIcon, 
+  CalculatorIcon, 
+  TableCellsIcon, 
+  AdjustmentsHorizontalIcon,
+  TrashIcon,
+  ClockIcon
+} from '@heroicons/react/24/outline';
 
 // 95% Confidence Level t-values (two-tailed alpha=0.05)
 // Key is degrees of freedom (f = n - 1)
@@ -28,6 +35,17 @@ const getTValue = (df: number): number => {
 
 type CalcMode = 'method1' | 'method2';
 
+interface HistoryItem {
+  id: number;
+  timestamp: string;
+  mode: CalcMode;
+  ra: string;
+  re: string;
+  avgRef: string;
+  avgCems: string;
+  inputSummary: string;
+}
+
 const AccuracyTool: React.FC = () => {
   const [mode, setMode] = useState<CalcMode>('method1');
   
@@ -49,6 +67,8 @@ const AccuracyTool: React.FC = () => {
     re: string; // Relative Error
     details: { ref: number; cems: number; diff: number }[];
   } | null>(null);
+
+  const [history, setHistory] = useState<HistoryItem[]>([]);
 
   const calculate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,25 +156,58 @@ const AccuracyTool: React.FC = () => {
 
     // 6. Relative Accuracy (RA) = (CC + |avgDiff|) / avgRef * 100
     // Uses the rounded avgDiff as requested
-    const ra = ((cc + Math.abs(avgDiff)) / avgRef) * 100;
+    const raVal = ((cc + Math.abs(avgDiff)) / avgRef) * 100;
 
     // 7. Relative Error (RE) = (avgCems - avgRef) / avgRef * 100
     // Uses the rounded averages
-    const re = ((avgCems - avgRef) / avgRef) * 100;
+    const reVal = ((avgCems - avgRef) / avgRef) * 100;
+
+    const finalAvgRef = avgRef.toFixed(1);
+    const finalAvgCems = avgCems.toFixed(1);
+    const finalRa = raVal.toFixed(2);
+    const finalRe = reVal.toFixed(2);
 
     setResult({
       mode,
       n,
-      avgRef: avgRef.toFixed(1), // Display with 1 decimal
-      avgCems: avgCems.toFixed(1), // Display with 1 decimal
-      avgDiff: avgDiff.toFixed(1), // Display with 1 decimal
+      avgRef: finalAvgRef,
+      avgCems: finalAvgCems,
+      avgDiff: avgDiff.toFixed(1),
       sd: sd.toFixed(4),
       tValue: t,
       cc: cc.toFixed(4),
-      ra: ra.toFixed(2),
-      re: re.toFixed(2),
+      ra: finalRa,
+      re: finalRe,
       details
     });
+
+    // --- Automatic History Saving ---
+    const cleanStr = (s: string) => s.replace(/[\n\r]+/g, ' ').replace(/\s+/g, ' ').trim();
+    const trunc = (s: string, len: number) => s.length > len ? s.substring(0, len) + '...' : s;
+
+    let inputSummary = '';
+    if (mode === 'method1') {
+      inputSummary = `参比[${trunc(cleanStr(refInputList), 15)}] | CEMS[${trunc(cleanStr(cemsInput), 15)}]`;
+    } else {
+      inputSummary = `基准[${refInputSingle}] | CEMS[${trunc(cleanStr(cemsInput), 25)}]`;
+    }
+
+    const newItem: HistoryItem = {
+      id: Date.now(),
+      timestamp: new Date().toLocaleTimeString(),
+      mode: mode,
+      ra: finalRa,
+      re: finalRe,
+      avgRef: finalAvgRef,
+      avgCems: finalAvgCems,
+      inputSummary
+    };
+
+    setHistory(prev => [newItem, ...prev]);
+  };
+
+  const deleteHistoryItem = (id: number) => {
+    setHistory(history.filter(item => item.id !== id));
   };
 
   return (
@@ -349,6 +402,59 @@ const AccuracyTool: React.FC = () => {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Section */}
+      {history.length > 0 && (
+        <div className="border-t border-gray-200 pt-8 mt-8">
+          <h3 className="text-lg font-bold text-gray-700 mb-4 flex items-center">
+            <ClockIcon className="w-5 h-5 mr-2 text-gray-500" />
+            历史计算记录
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {history.map((item) => (
+              <div key={item.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 relative group hover:shadow-md transition-shadow">
+                <button 
+                  onClick={() => deleteHistoryItem(item.id)}
+                  className="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="删除记录"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                </button>
+                <div className="flex justify-between items-start mb-2">
+                  <span className={`text-xs px-2 py-1 rounded font-medium ${item.mode === 'method1' ? 'bg-blue-50 text-blue-700' : 'bg-orange-50 text-orange-700'}`}>
+                    {item.mode === 'method1' ? '方案1 (多对多)' : '方案2 (多对一)'}
+                  </span>
+                  <span className="text-xs text-gray-400">{item.timestamp}</span>
+                </div>
+                
+                <div className="flex justify-between items-baseline mb-3">
+                  <div className="text-center">
+                    <span className="block text-xs text-gray-500 uppercase">相对准确度</span>
+                    <span className="block text-xl font-bold text-gray-800">{item.ra}%</span>
+                  </div>
+                  <div className="text-center">
+                    <span className="block text-xs text-gray-500 uppercase">相对误差</span>
+                    <span className="block text-xl font-bold text-gray-800">{item.re}%</span>
+                  </div>
+                </div>
+
+                <div className="text-xs text-gray-500 space-y-1 mb-2">
+                  <div className="flex justify-between">
+                    <span>参比均值: {item.avgRef}</span>
+                    <span>CEMS均值: {item.avgCems}</span>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-gray-100">
+                  <p className="text-[10px] text-gray-400 font-mono truncate" title={item.inputSummary}>
+                    {item.inputSummary}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

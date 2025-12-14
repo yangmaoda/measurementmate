@@ -7,10 +7,25 @@ import {
   BeakerIcon, 
   CheckCircleIcon, 
   XCircleIcon,
-  ListBulletIcon
+  ListBulletIcon,
+  ClockIcon,
+  TrashIcon
 } from '@heroicons/react/24/outline';
 
 const PROJECTS: ProjectType[] = ['so2', 'no2', 'flow_rate', 'temperature', 'oxygen', 'humidity', 'particles', 'other_gas', 'average_calc'];
+
+interface HistoryItem {
+  id: number;
+  timestamp: string;
+  projectLabel: string;
+  isAvgMode: boolean;
+  onlineAvg: string;
+  personalVal: string;
+  resultStatus: string;
+  errorDisplay: string;
+  inputSummary: string;
+  isQualified: boolean;
+}
 
 const ComparisonTool: React.FC = () => {
   const [project, setProject] = useState<ProjectType>('so2');
@@ -18,6 +33,7 @@ const ComparisonTool: React.FC = () => {
   const [bulkText, setBulkText] = useState('');
   const [personalValue, setPersonalValue] = useState('');
   const [result, setResult] = useState<ComparisonResult | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
 
   const isAvgMode = project === 'average_calc';
 
@@ -51,18 +67,36 @@ const ComparisonTool: React.FC = () => {
 
     const onlineAverage = allOnline.reduce((a, b) => a + b, 0) / allOnline.length;
 
+    // Helper for history input summary
+    const inputSummary = `n=${allOnline.length}, 输入:[${allOnline.slice(0, 3).join(', ')}${allOnline.length > 3 ? '...' : ''}]`;
+
     // Special logic for Average Calculation Mode
     if (isAvgMode) {
       setResult({
         onlineAverage,
-        personalValue: 0, // Not used
-        error: 0,         // Not used
-        isRelative: false,// Not used
-        isQualified: true,// Always true for display purposes
+        personalValue: 0, 
+        error: 0,         
+        isRelative: false,
+        isQualified: true,
         message: '纯计算模式',
         documentReq: '',
         sampleCount: allOnline.length
       });
+
+      // Save History for Average Mode
+      const newItem: HistoryItem = {
+        id: Date.now(),
+        timestamp: new Date().toLocaleTimeString(),
+        projectLabel: PROJECT_LABELS[project],
+        isAvgMode: true,
+        onlineAvg: onlineAverage.toFixed(5),
+        personalVal: '-',
+        resultStatus: '计算完成',
+        errorDisplay: '-',
+        inputSummary,
+        isQualified: true
+      };
+      setHistory(prev => [newItem, ...prev]);
       return;
     }
     
@@ -132,6 +166,25 @@ const ComparisonTool: React.FC = () => {
       message,
       documentReq
     });
+
+    // Save History for Standard Mode
+    const newItem: HistoryItem = {
+      id: Date.now(),
+      timestamp: new Date().toLocaleTimeString(),
+      projectLabel: PROJECT_LABELS[project],
+      isAvgMode: false,
+      onlineAvg: onlineAverage.toFixed(5),
+      personalVal: pVal.toFixed(5),
+      resultStatus: isQualified ? '合格' : '不合格',
+      errorDisplay: `${error.toFixed(isRelativeError ? 2 : 5)}${isRelativeError ? '%' : ''}`,
+      inputSummary: `${inputSummary} | 本人:${pVal}`,
+      isQualified
+    };
+    setHistory(prev => [newItem, ...prev]);
+  };
+
+  const deleteHistoryItem = (id: number) => {
+    setHistory(history.filter(item => item.id !== id));
   };
 
   // Reset result when project changes
@@ -305,6 +358,54 @@ const ComparisonTool: React.FC = () => {
           )}
         </div>
       </div>
+      
+      {/* History Section */}
+      {history.length > 0 && (
+        <div className="border-t border-gray-200 pt-8 mt-8">
+          <h3 className="text-lg font-bold text-gray-700 mb-4 flex items-center">
+            <ClockIcon className="w-5 h-5 mr-2 text-gray-500" />
+            历史计算记录
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {history.map((item) => (
+              <div key={item.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 relative group hover:shadow-md transition-shadow">
+                <button 
+                  onClick={() => deleteHistoryItem(item.id)}
+                  className="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="删除记录"
+                >
+                  <TrashIcon className="w-4 h-4" />
+                </button>
+                <div className="flex justify-between items-start mb-2">
+                  <span className={`text-xs px-2 py-1 rounded font-medium ${item.isAvgMode ? 'bg-gray-100 text-gray-700' : (item.isQualified ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700')}`}>
+                    {item.projectLabel}
+                  </span>
+                  <span className="text-xs text-gray-400">{item.timestamp}</span>
+                </div>
+                
+                <div className="mb-2">
+                  <span className={`block text-lg font-bold ${item.isAvgMode ? 'text-brand-600' : (item.isQualified ? 'text-green-700' : 'text-red-700')}`}>
+                    {item.isAvgMode ? `平均: ${item.onlineAvg}` : item.resultStatus}
+                  </span>
+                  {!item.isAvgMode && (
+                     <span className="text-sm text-gray-500">误差: {item.errorDisplay}</span>
+                  )}
+                </div>
+
+                <div className="text-xs text-gray-500 space-y-1 pt-2 border-t border-gray-50">
+                   {!item.isAvgMode && (
+                      <div className="flex justify-between">
+                         <span>在线均值: {item.onlineAvg}</span>
+                         <span>基准: {item.personalVal}</span>
+                      </div>
+                   )}
+                   <div className="text-gray-400 truncate" title={item.inputSummary}>{item.inputSummary}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
