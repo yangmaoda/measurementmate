@@ -6,10 +6,11 @@ import {
   CalculatorIcon, 
   BeakerIcon, 
   CheckCircleIcon, 
-  XCircleIcon 
+  XCircleIcon,
+  ListBulletIcon
 } from '@heroicons/react/24/outline';
 
-const PROJECTS: ProjectType[] = ['so2', 'no2', 'flow_rate', 'temperature', 'oxygen', 'humidity', 'particles', 'other_gas'];
+const PROJECTS: ProjectType[] = ['so2', 'no2', 'flow_rate', 'temperature', 'oxygen', 'humidity', 'particles', 'other_gas', 'average_calc'];
 
 const ComparisonTool: React.FC = () => {
   const [project, setProject] = useState<ProjectType>('so2');
@@ -17,6 +18,8 @@ const ComparisonTool: React.FC = () => {
   const [bulkText, setBulkText] = useState('');
   const [personalValue, setPersonalValue] = useState('');
   const [result, setResult] = useState<ComparisonResult | null>(null);
+
+  const isAvgMode = project === 'average_calc';
 
   const handleOnlineChange = (index: number, val: string) => {
     const newVals = [...onlineValues];
@@ -35,26 +38,41 @@ const ComparisonTool: React.FC = () => {
 
   const calculate = (e: React.FormEvent) => {
     e.preventDefault();
-    const pVal = parseFloat(personalValue);
     
     // Combine specific inputs and bulk text
     const specificNums = onlineValues.map(v => parseFloat(v)).filter(v => !isNaN(v));
     const bulkNums = parseNumbersFromText(bulkText);
     const allOnline = [...specificNums, ...bulkNums];
 
+    if (allOnline.length === 0) {
+      alert("请输入至少一个数值");
+      return;
+    }
+
+    const onlineAverage = allOnline.reduce((a, b) => a + b, 0) / allOnline.length;
+
+    // Special logic for Average Calculation Mode
+    if (isAvgMode) {
+      setResult({
+        onlineAverage,
+        personalValue: 0, // Not used
+        error: 0,         // Not used
+        isRelative: false,// Not used
+        isQualified: true,// Always true for display purposes
+        message: '纯计算模式',
+        documentReq: '',
+        sampleCount: allOnline.length
+      });
+      return;
+    }
+    
+    // Standard Comparison Logic
+    const pVal = parseFloat(personalValue);
     if (isNaN(pVal)) {
       alert("请输入有效的本人测量值");
       return;
     }
 
-    if (allOnline.length === 0) {
-      alert("请输入至少一个在线测量值");
-      return;
-    }
-
-    const onlineAverage = allOnline.reduce((a, b) => a + b, 0) / allOnline.length;
-    
-    // Logic extracted from original script
     let allowableErrorPercentage = 0;
     let allowableError = 0;
     let isRelativeError = false;
@@ -127,7 +145,7 @@ const ComparisonTool: React.FC = () => {
           <BeakerIcon className="w-5 h-5 mr-2 text-brand-600" />
           选择检测项目
         </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
           {PROJECTS.map((key) => (
             <button
               key={key}
@@ -148,7 +166,9 @@ const ComparisonTool: React.FC = () => {
         {/* Left Column: Inputs */}
         <form onSubmit={calculate} className="space-y-6">
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-            <h3 className="font-semibold text-gray-800 mb-4 border-l-4 border-brand-500 pl-3">数据输入</h3>
+            <h3 className="font-semibold text-gray-800 mb-4 border-l-4 border-brand-500 pl-3">
+              {isAvgMode ? '数据输入' : '数据输入'}
+            </h3>
             
             {/* Inline OCR */}
             <div className="mb-6">
@@ -158,7 +178,9 @@ const ComparisonTool: React.FC = () => {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">在线测量值 (单项)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {isAvgMode ? '输入数值 (单项)' : '在线测量值 (单项)'}
+                </label>
                 <div className="grid grid-cols-5 gap-2">
                   {onlineValues.map((val, idx) => (
                     <input
@@ -175,7 +197,9 @@ const ComparisonTool: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">批量输入 / OCR结果</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {isAvgMode ? '批量数值输入 / OCR结果' : '批量输入 / OCR结果'}
+                </label>
                 <textarea
                   rows={4}
                   value={bulkText}
@@ -185,17 +209,19 @@ const ComparisonTool: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">本人测量值 (基准)</label>
-                <input
-                  type="number"
-                  step="any"
-                  required
-                  value={personalValue}
-                  onChange={(e) => setPersonalValue(e.target.value)}
-                  className="w-full px-4 py-2 text-lg font-mono border-gray-300 rounded-lg focus:ring-brand-500 focus:border-brand-500 bg-brand-50 border-brand-200"
-                />
-              </div>
+              {!isAvgMode && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">本人测量值 (基准)</label>
+                  <input
+                    type="number"
+                    step="any"
+                    required
+                    value={personalValue}
+                    onChange={(e) => setPersonalValue(e.target.value)}
+                    className="w-full px-4 py-2 text-lg font-mono border-gray-300 rounded-lg focus:ring-brand-500 focus:border-brand-500 bg-brand-50 border-brand-200"
+                  />
+                </div>
+              )}
             </div>
 
             <button
@@ -203,7 +229,7 @@ const ComparisonTool: React.FC = () => {
               className="mt-6 w-full flex justify-center items-center px-4 py-3 bg-brand-600 text-white rounded-lg font-medium shadow hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 transition-colors"
             >
               <CalculatorIcon className="w-5 h-5 mr-2" />
-              开始比对
+              {isAvgMode ? '计算平均数' : '开始比对'}
             </button>
           </div>
         </form>
@@ -211,47 +237,70 @@ const ComparisonTool: React.FC = () => {
         {/* Right Column: Results */}
         <div className="space-y-6">
           {result ? (
-            <div className={`p-6 rounded-xl shadow-lg border-2 ${result.isQualified ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className={`text-xl font-bold ${result.isQualified ? 'text-green-800' : 'text-red-800'}`}>
-                  {result.isQualified ? '比对合格' : '比对不合格'}
-                </h3>
-                {result.isQualified ? (
-                  <CheckCircleIcon className="w-10 h-10 text-green-600" />
-                ) : (
-                  <XCircleIcon className="w-10 h-10 text-red-600" />
-                )}
-              </div>
-              
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between border-b border-gray-200/50 pb-2">
-                  <span className="text-gray-600">在线平均值</span>
-                  <span className="font-mono font-bold text-gray-900">{result.onlineAverage.toFixed(5)}</span>
+            isAvgMode ? (
+              // Average Calculation Result View
+              <div className="p-6 rounded-xl shadow-lg border-2 bg-brand-50 border-brand-200">
+                 <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-bold text-brand-800 flex items-center">
+                    <ListBulletIcon className="w-6 h-6 mr-2" />
+                    计算结果
+                  </h3>
                 </div>
-                <div className="flex justify-between border-b border-gray-200/50 pb-2">
-                  <span className="text-gray-600">本人测量值</span>
-                  <span className="font-mono font-bold text-gray-900">{result.personalValue.toFixed(5)}</span>
-                </div>
-                <div className="flex justify-between border-b border-gray-200/50 pb-2">
-                  <span className="text-gray-600">计算误差</span>
-                  <span className="font-mono font-bold text-brand-700">
-                    {result.error.toFixed(result.isRelative ? 2 : 5)}{result.isRelative ? '%' : ''}
-                  </span>
-                </div>
-                <div className="flex justify-between border-b border-gray-200/50 pb-2">
-                  <span className="text-gray-600">标准要求</span>
-                  <span className="text-gray-900 text-right">{result.documentReq}</span>
-                </div>
-                <div className="mt-4 pt-2">
-                  <span className="text-xs text-gray-500 block mb-1">判定依据范围</span>
-                  <p className="text-gray-700 font-medium">{result.message}</p>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-end border-b border-brand-200/50 pb-3">
+                    <span className="text-brand-700 font-medium">样本数量 (n)</span>
+                    <span className="text-2xl font-mono font-bold text-brand-900">{result.sampleCount}</span>
+                  </div>
+                  <div className="flex justify-between items-end">
+                    <span className="text-brand-700 font-medium">算术平均值</span>
+                    <span className="text-4xl font-mono font-bold text-brand-600">{result.onlineAverage.toFixed(5)}</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              // Standard Comparison Result View
+              <div className={`p-6 rounded-xl shadow-lg border-2 ${result.isQualified ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className={`text-xl font-bold ${result.isQualified ? 'text-green-800' : 'text-red-800'}`}>
+                    {result.isQualified ? '比对合格' : '比对不合格'}
+                  </h3>
+                  {result.isQualified ? (
+                    <CheckCircleIcon className="w-10 h-10 text-green-600" />
+                  ) : (
+                    <XCircleIcon className="w-10 h-10 text-red-600" />
+                  )}
+                </div>
+                
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between border-b border-gray-200/50 pb-2">
+                    <span className="text-gray-600">在线平均值</span>
+                    <span className="font-mono font-bold text-gray-900">{result.onlineAverage.toFixed(5)}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-gray-200/50 pb-2">
+                    <span className="text-gray-600">本人测量值</span>
+                    <span className="font-mono font-bold text-gray-900">{result.personalValue.toFixed(5)}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-gray-200/50 pb-2">
+                    <span className="text-gray-600">计算误差</span>
+                    <span className="font-mono font-bold text-brand-700">
+                      {result.error.toFixed(result.isRelative ? 2 : 5)}{result.isRelative ? '%' : ''}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-b border-gray-200/50 pb-2">
+                    <span className="text-gray-600">标准要求</span>
+                    <span className="text-gray-900 text-right">{result.documentReq}</span>
+                  </div>
+                  <div className="mt-4 pt-2">
+                    <span className="text-xs text-gray-500 block mb-1">判定依据范围</span>
+                    <p className="text-gray-700 font-medium">{result.message}</p>
+                  </div>
+                </div>
+              </div>
+            )
           ) : (
             <div className="h-full bg-gray-100 rounded-xl border border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 min-h-[300px]">
               <CalculatorIcon className="w-16 h-16 mb-2 opacity-50" />
-              <p>输入数据后点击“开始比对”</p>
+              <p>输入数据后点击“{isAvgMode ? '计算平均数' : '开始比对'}”</p>
             </div>
           )}
         </div>

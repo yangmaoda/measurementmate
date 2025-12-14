@@ -6,7 +6,8 @@ export type ProjectType =
   | 'oxygen' 
   | 'humidity' 
   | 'particles' 
-  | 'other_gas';
+  | 'other_gas'
+  | 'average_calc';
 
 export const PROJECT_LABELS: Record<ProjectType, string> = {
   so2: '二氧化硫 (SO₂)',
@@ -16,7 +17,8 @@ export const PROJECT_LABELS: Record<ProjectType, string> = {
   oxygen: '含氧量',
   humidity: '含湿量',
   particles: '颗粒物',
-  other_gas: '其它气态污染物'
+  other_gas: '其它气态污染物',
+  average_calc: '计算平均数'
 };
 
 export interface ComparisonResult {
@@ -27,6 +29,8 @@ export interface ComparisonResult {
   isQualified: boolean;
   message: string;
   documentReq: string;
+  // Optional field for sample count in average calculation mode
+  sampleCount?: number;
 }
 
 // Global definition for Tesseract attached to window via CDN
