@@ -188,7 +188,12 @@ const ComparisonTool: React.FC = () => {
   };
 
   // Reset result when project changes
-  useEffect(() => { setResult(null); }, [project]);
+    useEffect(() => {
+    setResult(null);
+    setOnlineValues(['', '', '', '', '']);
+    setBulkText('');
+    setPersonalValue('');
+  }, [project]);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
