@@ -187,8 +187,8 @@ const ComparisonTool: React.FC = () => {
     setHistory(history.filter(item => item.id !== id));
   };
 
-  // Reset result when project changes
-    useEffect(() => {
+  // Reset inputs and result when project changes
+  useEffect(() => {
     setResult(null);
     setOnlineValues(['', '', '', '', '']);
     setBulkText('');
