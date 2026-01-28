@@ -1,12 +1,31 @@
-// Helper to parse numbers from text, handling Chinese punctuation
+
+// Helper to parse numbers from text, handling Chinese punctuation and fixing mis-concatenation
 export const parseNumbersFromText = (text: string): number[] => {
   if (!text) return [];
-  const fixed = text.replace(/，/g, ',').replace(/。/g, '.');
-  const NUM_RE = /-?\d+(?:[,\s]\d{3})*(?:\.\d+)?/g;
-  const hits = fixed.match(NUM_RE) || [];
+
+  // 1. 预处理：统一中文标点
+  // 将中文逗号和句号转为英文，方便后续统一处理
+  const normalized = text.replace(/，/g, ',').replace(/。/g, '.');
+
+  /**
+   * 2. 正则表达式优化
+   * 旧的正则 /-?\d+(?:[,\s]\d{3})*(?:\.\d+)?/g 会把 "131 131" 匹配为一个整体，因为它试图匹配千分位。
+   * 新的正则 /-?\d+(?:[\.,]\d+)?/g 
+   * - 匹配可选负号
+   * - 匹配连续数字
+   * - 可选：匹配一个点或逗号（作为小数点），后接连续数字
+   * 这样空格就会自然地成为匹配的终点，从而将数据分开。
+   */
+  const NUM_RE = /-?\d+(?:[\.,]\d+)?/g;
+  
+  const hits = normalized.match(NUM_RE) || [];
+  
   return hits
-    .map((s) => s.replace(/\s+/g, '').replace(/,/g, ''))
-    .map(parseFloat)
+    .map((s) => {
+      // 兼容 OCR 识别错误：如果数字中间是逗号，通常是把小数点识别错了
+      const standardNum = s.replace(',', '.');
+      return parseFloat(standardNum);
+    })
     .filter((v) => !isNaN(v));
 };
 
@@ -32,10 +51,8 @@ export const preprocessImage = (file: File): Promise<HTMLCanvasElement[]> => {
       ctx.imageSmoothingEnabled = true;
       ctx.drawImage(img, 0, 0, w, h);
 
-      // Create variants: Original, Binarized, Inverted
-      const variants = [canvas]; // Just returning original scaled for speed in this demo, 
-      // typically we would add binarization here similar to the original script
-      // keeping it lightweight for the React port to ensure responsiveness.
+      // Create variants: Original
+      const variants = [canvas]; 
       
       resolve(variants);
     };
