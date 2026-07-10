@@ -4,16 +4,18 @@ import ConversionTool from './components/ConversionTool';
 import CalibrationTool from './components/CalibrationTool';
 import AccuracyTool from './components/AccuracyTool';
 import StandaloneOCR from './components/StandaloneOCR';
+import WellVolumeTool from './components/WellVolumeTool';
 import { 
   ClipboardDocumentCheckIcon, 
   CalculatorIcon, 
   PhotoIcon,
   Bars3Icon,
   WrenchScrewdriverIcon,
-  ChartBarSquareIcon
+  ChartBarSquareIcon,
+  CircleStackIcon
 } from '@heroicons/react/24/outline';
 
-type Tab = 'comparison' | 'conversion' | 'calibration' | 'accuracy' | 'ocr';
+type Tab = 'comparison' | 'conversion' | 'calibration' | 'accuracy' | 'ocr' | 'wellVolume';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>('comparison');
@@ -26,6 +28,7 @@ const App: React.FC = () => {
       case 'calibration': return <CalibrationTool />;
       case 'accuracy': return <AccuracyTool />;
       case 'ocr': return <StandaloneOCR />;
+      case 'wellVolume': return <WellVolumeTool />;
       default: return <ComparisonTool />;
     }
   };
@@ -35,6 +38,7 @@ const App: React.FC = () => {
     { id: 'conversion', label: '计算工具', icon: CalculatorIcon },
     { id: 'calibration', label: '校准', icon: WrenchScrewdriverIcon },
     { id: 'accuracy', label: '相对准确度', icon: ChartBarSquareIcon },
+    { id: 'wellVolume', label: '井水体积', icon: CircleStackIcon },
     { id: 'ocr', label: '独立 OCR', icon: PhotoIcon },
   ];
 
@@ -112,6 +116,7 @@ const App: React.FC = () => {
              {activeTab === 'conversion' && '气体参数折算与数值修约工具'}
              {activeTab === 'calibration' && '校准误差与偏差计算工具'}
              {activeTab === 'accuracy' && 'CEMS氧含量相对准确度与相对误差计算'}
+             {activeTab === 'wellVolume' && '井水体积计算与洗井推荐水量估算'}
              {activeTab === 'ocr' && '图片文字识别辅助工具'}
            </p>
         </header>
